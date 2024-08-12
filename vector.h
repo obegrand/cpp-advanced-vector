@@ -352,28 +352,20 @@ inline Vector<T>::iterator Vector<T>::Emplace(const_iterator pos, Args && ...arg
 	if (size_ == Capacity()) {
 		RawMemory<T> new_data(size_ == 0 ? 1 : size_ * 2);
 		new (new_data + offset) T(std::forward<Args>(args)...);
-
-		if constexpr (std::is_nothrow_move_constructible_v<T> || !std::is_copy_constructible_v<T>) {
-			try {
+		try {
+			if constexpr (std::is_nothrow_move_constructible_v<T> || !std::is_copy_constructible_v<T>) {
 				std::uninitialized_move_n(begin(), offset, new_data.GetAddress());
 				std::uninitialized_move_n(begin() + offset, size_ - offset, new_data.GetAddress() + offset + 1);
 			}
-			catch (...) {
-				std::destroy_n(new_data.GetAddress() + offset, 1);
-				throw;
-			}
-		}
-		else {
-			try {
+			else {
 				std::uninitialized_copy_n(begin(), offset, new_data.GetAddress());
 				std::uninitialized_copy_n(begin() + offset, size_ - offset, new_data.GetAddress() + offset + 1);
 			}
-			catch (...) {
-				std::destroy_n(new_data.GetAddress() + offset, 1);
-				throw;
-			}
 		}
-
+		catch (...) {
+			std::destroy_n(new_data.GetAddress(), size_);
+			throw;
+		}
 		std::destroy_n(begin(), size_);
 		data_.Swap(new_data);
 	}
@@ -390,7 +382,7 @@ inline Vector<T>::iterator Vector<T>::Emplace(const_iterator pos, Args && ...arg
 				std::destroy_n(end(), 1);
 				throw;
 			}
-			data_[offset] = std::forward<T>(temp);
+			data_[offset] = std::move_if_noexcept(temp);
 		}
 	}
 	++size_;
@@ -403,26 +395,16 @@ inline T& Vector<T>::EmplaceBack(Args && ...args) {
 	if (size_ == Capacity()) {
 		RawMemory<T> new_data(size_ == 0 ? 1 : size_ * 2);
 		new (new_data + size_) T(std::forward<Args>(args)...);
-
-		if constexpr (std::is_nothrow_move_constructible_v<T> || !std::is_copy_constructible_v<T>) {
-			try {
+		try {
+			if constexpr (std::is_nothrow_move_constructible_v<T> || !std::is_copy_constructible_v<T>)
 				std::uninitialized_move_n(begin(), size_, new_data.GetAddress());
-			}
-			catch (...) {
-				std::destroy_n(new_data.GetAddress() + size_, 1);
-				throw;
-			}
-		}
-		else {
-			try {
+			else
 				std::uninitialized_copy_n(begin(), size_, new_data.GetAddress());
-			}
-			catch (...) {
-				std::destroy_n(new_data.GetAddress() + size_, 1);
-				throw;
-			}
 		}
-
+		catch (...) {
+			std::destroy_n(new_data.GetAddress() + size_, 1);
+			throw;
+		}
 		std::destroy_n(begin(), size_);
 		data_.Swap(new_data);
 	}
