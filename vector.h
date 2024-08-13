@@ -363,7 +363,7 @@ inline Vector<T>::iterator Vector<T>::Emplace(const_iterator pos, Args && ...arg
 			}
 		}
 		catch (...) {
-			std::destroy_n(new_data.GetAddress(), size_);
+			std::destroy_n(new_data.GetAddress(), offset + 1);
 			throw;
 		}
 		std::destroy_n(begin(), size_);
