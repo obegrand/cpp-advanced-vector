@@ -353,14 +353,20 @@ inline Vector<T>::iterator Vector<T>::Emplace(const_iterator pos, Args && ...arg
 		RawMemory<T> new_data(size_ == 0 ? 1 : size_ * 2);
 		new (new_data + offset) T(std::forward<Args>(args)...);
 		try {
-			if constexpr (std::is_nothrow_move_constructible_v<T> || !std::is_copy_constructible_v<T>) {
+			if constexpr (std::is_nothrow_move_constructible_v<T> || !std::is_copy_constructible_v<T>) 
 				std::uninitialized_move_n(begin(), offset, new_data.GetAddress());
-				std::uninitialized_move_n(begin() + offset, size_ - offset, new_data.GetAddress() + offset + 1);
-			}
-			else {
+			else 
 				std::uninitialized_copy_n(begin(), offset, new_data.GetAddress());
+		}
+		catch (...) {
+			std::destroy_n(new_data.GetAddress() + offset, 1);
+			throw;
+		}
+		try {
+			if constexpr (std::is_nothrow_move_constructible_v<T> || !std::is_copy_constructible_v<T>) 
+				std::uninitialized_move_n(begin() + offset, size_ - offset, new_data.GetAddress() + offset + 1);
+			else 
 				std::uninitialized_copy_n(begin() + offset, size_ - offset, new_data.GetAddress() + offset + 1);
-			}
 		}
 		catch (...) {
 			std::destroy_n(new_data.GetAddress(), offset + 1);
